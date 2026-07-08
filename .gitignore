@@ -11,3 +11,4 @@ crash.log
 test_*.py
 pic/
 config.yaml
+benchmark_full.py
