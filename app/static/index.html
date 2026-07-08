@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MoA Proxy</title>
+    <style>
+        :root {
+            --bg: #f0f2f5;
+            --sidebar: #1a1a2e;
+            --sidebar-active: #16213e;
+            --sidebar-text: #a0a0b0;
+            --sidebar-hover: #ffffff;
+            --card: #ffffff;
+            --border: #e8e8e8;
+            --primary: #4f46e5;
+            --primary-hover: #6366f1;
+            --primary-light: #eef2ff;
+            --success: #10b981;
+            --success-light: #ecfdf5;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+            --warning: #f59e0b;
+            --text: #1f2937;
+            --text-secondary: #6b7280;
+            --text-muted: #9ca3af;
+            --radius: 10px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ── 侧边栏 ── */
+        .sidebar {
+            width: 220px;
+            background: var(--sidebar);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        .sidebar-header {
+            padding: 24px 20px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .sidebar-header h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.5px;
+        }
+        .sidebar-header .subtitle {
+            font-size: 11px;
+            color: var(--sidebar-text);
+            margin-top: 4px;
+        }
+        .sidebar-nav {
+            flex: 1;
+            padding: 12px 10px;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--sidebar-text);
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.15s;
+            margin-bottom: 2px;
+        }
+        .nav-item:hover {
+            background: rgba(255,255,255,0.06);
+            color: var(--sidebar-hover);
+        }
+        .nav-item.active {
+            background: var(--primary);
+            color: #fff;
+        }
+        .nav-item svg {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-dot.ok { background: var(--success); box-shadow: 0 0 6px rgba(16,185,129,0.4); }
+        .status-dot.err { background: var(--danger); box-shadow: 0 0 6px rgba(239,68,68,0.4); }
+        .status-text {
+            font-size: 12px;
+            color: var(--sidebar-text);
+        }
+
+        /* ── 主内容 ── */
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .topbar {
+            height: 56px;
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            flex-shrink: 0;
+        }
+        .topbar h2 {
+            font-size: 15px;
+            font-weight: 600;
+        }
+        .topbar-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        /* ── Tab 内容 ── */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ── 卡片 ── */
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+        }
+
+        /* ── 统计卡片 ── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 18px 20px;
+        }
+        .stat-card .label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+        .stat-card .value {
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1;
+        }
+        .stat-card .change {
+            font-size: 11px;
+            margin-top: 6px;
+        }
+
+        /* ── 表格 ── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            text-align: left;
+            padding: 10px 14px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+            background: #fafafa;
+        }
+        td {
+            padding: 12px 14px;
+            font-size: 13px;
+            border-bottom: 1px solid var(--border);
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f9fafb; }
+        tr.selected td { background: var(--primary-light); }
+
+        /* ── 表单 ── */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .form-group {
+            margin-bottom: 0;
+        }
+        .form-group.full {
+            grid-column: 1 / -1;
+        }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 13px;
+            color: var(--text);
+            background: #fff;
+            transition: border-color 0.15s;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79,70,229,0.08);
+        }
+        .form-group input::placeholder { color: var(--text-muted); }
+
+        /* ── 按钮 ── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+        .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+        .btn-success {
+            background: var(--success);
+            color: #fff;
+        }
+        .btn-success:hover:not(:disabled) { background: #059669; }
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+        }
+        .btn-danger:hover:not(:disabled) { background: #dc2626; }
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+        .btn-ghost:hover:not(:disabled) { background: #f9fafb; }
+        .btn-sm {
+            padding: 4px 10px;
+            font-size: 12px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* ── 策略选择 ── */
+        .strategy-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        .strategy-card {
+            padding: 14px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: center;
+        }
+        .strategy-card:hover { border-color: var(--primary); }
+        .strategy-card.active {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+        .strategy-card .name {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .strategy-card .desc {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* ── 预设列表 ── */
+        .preset-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: all 0.15s;
+        }
+        .preset-item:hover { border-color: var(--primary); }
+        .preset-item.active {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+        .preset-item .info { flex: 1; }
+        .preset-item .name {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .preset-item .desc {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        .preset-item .actions {
+            display: flex;
+            gap: 6px;
+        }
+        .active-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: var(--primary);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 600;
+            border-radius: 4px;
+            margin-left: 8px;
+        }
+
+        /* ── Checkbox ── */
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .checkbox-item:hover { border-color: var(--primary); }
+        .checkbox-item.checked {
+            border-color: var(--primary);
+            background: var(--primary-light);
+        }
+        .checkbox-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary);
+        }
+        .checkbox-item .ep-name {
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .checkbox-item .ep-model {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-left: auto;
+        }
+
+        /* ── Toast ── */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .toast {
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #fff;
+            animation: slideIn 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        .toast.info { background: var(--primary); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* ── 空状态 ── */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+        .empty-state svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 12px;
+            opacity: 0.3;
+        }
+        .empty-state p {
+            font-size: 13px;
+        }
+
+        /* ── 模型选择器 ── */
+        .model-selector {
+            position: relative;
+        }
+        .model-selector select {
+            appearance: none;
+            background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%236b7280' d='M5 6L0 0h10z'/%3E%3C/svg%3E") no-repeat right 12px center;
+            padding-right: 32px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边栏 -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h1>MoA Proxy</h1>
+            <div class="subtitle">多模型聚合代理 v1.0</div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-item active" onclick="switchTab('dashboard')" data-tab="dashboard">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                仪表盘
+            </div>
+            <div class="nav-item" onclick="switchTab('endpoints')" data-tab="endpoints">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+                端点管理
+            </div>
+            <div class="nav-item" onclick="switchTab('config')" data-tab="config">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                编排配置
+            </div>
+            <div class="nav-item" onclick="switchTab('benchmark')" data-tab="benchmark">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                模型评测
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <span class="status-dot" id="statusDot"></span>
+            <span class="status-text" id="statusText">检查中...</span>
+        </div>
+    </div>
+
+    <!-- 主内容 -->
+    <div class="main">
+        <div class="topbar">
+            <h2 id="pageTitle">仪表盘</h2>
+            <div class="topbar-actions">
+                <button class="btn btn-ghost btn-sm" onclick="location.reload()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                    刷新
+                </button>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- 仪表盘 -->
+            <div id="dashboard" class="tab-content active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="label">总请求</div>
+                        <div class="value" id="totalRequests">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">成功请求</div>
+                        <div class="value" id="okRequests">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">平均延迟</div>
+                        <div class="value" id="avgLatency">--</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">总 Token</div>
+                        <div class="value" id="totalTokens">--</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">最近请求</div>
+                    <table>
+                        <thead><tr><th>时间</th><th>策略</th><th>模型</th><th>延迟</th><th>状态</th></tr></thead>
+                        <tbody id="recentRequests">
+                            <tr><td colspan="5" class="empty-state"><p>暂无请求记录</p></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 端点管理 -->
+            <div id="endpoints" class="tab-content">
+                <div class="card">
+                    <div class="card-title">添加 / 编辑端点</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>名称</label>
+                            <input type="text" id="epName" placeholder="deepseek-chat">
+                        </div>
+                        <div class="form-group">
+                            <label>类型</label>
+                            <select id="epType">
+                                <option value="openai">OpenAI 兼容</option>
+                                <option value="anthropic">Anthropic</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Base URL</label>
+                            <input type="text" id="epUrl" placeholder="https://api.deepseek.com/v1">
+                        </div>
+                        <div class="form-group">
+                            <label>API Key</label>
+                            <input type="password" id="epKey" placeholder="sk-...">
+                        </div>
+                        <div class="form-group full">
+                            <label>Model</label>
+                            <div class="model-selector">
+                                <input type="text" id="epModel" placeholder="点击「获取模型」自动填充">
+                                <select id="epModelSelect" style="display:none;" onchange="document.getElementById('epModel').value=this.value"></select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="btn-group" style="margin-top:16px;">
+                        <button class="btn btn-success" onclick="fetchModels()">获取模型</button>
+                        <button class="btn btn-ghost" onclick="testEndpoint()">测试连通性</button>
+                        <button class="btn btn-primary" onclick="saveEndpoint()">保存</button>
+                        <button class="btn btn-danger" onclick="deleteEndpoint()">删除</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">已配置端点</div>
+                    <table>
+                        <thead><tr><th>名称</th><th>类型</th><th>Base URL</th><th>Model</th><th>API Key</th></tr></thead>
+                        <tbody id="endpointList">
+                            <tr><td colspan="5" class="empty-state"><p>暂无端点</p></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 编排配置 -->
+            <div id="config" class="tab-content">
+                <div class="card">
+                    <div class="card-title">Proposers（多选）</div>
+                    <div id="proposerList">
+                        <div class="empty-state"><p>请先添加端点</p></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Aggregator</div>
+                    <div class="form-grid">
+                        <div class="form-group full">
+                            <label>聚合模型</label>
+                            <select id="aggEndpoint"></select>
+                        </div>
+                        <div class="form-group full">
+                            <label>System Prompt</label>
+                            <textarea id="aggPrompt" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">MoA 策略</div>
+                    <div class="strategy-cards">
+                        <div class="strategy-card active" onclick="selectStrategy(this, 'simple')">
+                            <div class="name">simple</div>
+                            <div class="desc">直接合并</div>
+                        </div>
+                        <div class="strategy-card" onclick="selectStrategy(this, 'vote')">
+                            <div class="name">vote</div>
+                            <div class="desc">投票选优</div>
+                        </div>
+                        <div class="strategy-card" onclick="selectStrategy(this, 'debate')">
+                            <div class="name">debate</div>
+                            <div class="desc">辩论改进</div>
+                        </div>
+                        <div class="strategy-card" onclick="selectStrategy(this, 'cascade')">
+                            <div class="name">cascade</div>
+                            <div class="desc">分层精炼</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">超时设置</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>普通超时（秒）</label>
+                            <input type="number" id="timeout" value="120">
+                        </div>
+                        <div class="form-group">
+                            <label>流式超时（秒）</label>
+                            <input type="number" id="streamTimeout" value="300">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">温度设置</div>
+                    <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">温度越高，回答越多样有创意；温度越低，回答越稳定保守。</p>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>提案者温度 <span style="color:var(--text-muted);font-size:11px;">（参谋，建议 0.6-0.8）</span></label>
+                            <input type="number" id="proposerTemp" value="0.6" min="0" max="2" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label>聚合器温度 <span style="color:var(--text-muted);font-size:11px;">（主持人，建议 0.3-0.5）</span></label>
+                            <input type="number" id="aggregatorTemp" value="0.4" min="0" max="2" step="0.1">
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" onclick="saveConfig()" style="margin-bottom:24px;">保存并应用</button>
+
+                <div class="card">
+                    <div class="card-title">配置预设</div>
+                    <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">保存当前配置为预设，可快速切换不同的编排方案。</p>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>预设名称</label>
+                            <input type="text" id="presetName" placeholder="deepseek+mimo simple">
+                        </div>
+                        <div class="form-group">
+                            <label>说明（可选）</label>
+                            <input type="text" id="presetDesc" placeholder="日常问答用">
+                        </div>
+                    </div>
+                    <button class="btn btn-success" onclick="savePreset()" style="margin-top:12px;">保存当前配置</button>
+
+                    <div style="margin-top:20px;">
+                        <div class="card-title">已保存的预设</div>
+                        <div id="presetList">
+                            <div class="empty-state"><p>暂无预设</p></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 模型评测 -->
+            <div id="benchmark" class="tab-content">
+                <div class="card">
+                    <div class="card-title">模型评测</div>
+                    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">内置 5 道标准测试题，自动测试所有已配置的模型（单独 + MoA 组合），对比质量/延迟/Token 消耗。</p>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <button class="btn btn-primary" id="benchmarkBtn" onclick="startBenchmark()">开始评测</button>
+                        <span id="benchmarkProgress" style="font-size:13px;color:var(--text-muted);"></span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">综合排名</div>
+                    <table>
+                        <thead><tr><th>模型/组合</th><th>类型</th><th>平均得分</th><th>平均延迟</th><th>总 Token</th></tr></thead>
+                        <tbody id="benchmarkRanking">
+                            <tr><td colspan="5" class="empty-state"><p>点击「开始评测」查看结果</p></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">详细结果</div>
+                    <table>
+                        <thead><tr><th>模型</th><th>题目</th><th>得分</th><th>延迟</th><th>Token</th><th>回答预览</th></tr></thead>
+                        <tbody id="benchmarkResults">
+                            <tr><td colspan="6" class="empty-state"><p>暂无数据</p></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        const API = '';
+
+        async function request(method, path, data) {
+            const opts = { method, headers: { 'Content-Type': 'application/json' } };
+            if (data) opts.body = JSON.stringify(data);
+            const res = await fetch(`${API}${path}`, opts);
+            if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+            return res.json();
+        }
+
+        function toast(msg, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const el = document.createElement('div');
+            el.className = `toast ${type}`;
+            const icons = { success: '✓', error: '✕', info: 'ℹ' };
+            el.innerHTML = `<span>${icons[type] || ''}</span> ${msg}`;
+            container.appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+
+        const titles = { dashboard: '仪表盘', endpoints: '端点管理', config: '编排配置', benchmark: '模型评测' };
+        function switchTab(name) {
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelector(`[data-tab="${name}"]`).classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.getElementById(name).classList.add('active');
+            document.getElementById('pageTitle').textContent = titles[name];
+            if (name === 'dashboard') loadDashboard();
+            if (name === 'endpoints') loadEndpoints();
+            if (name === 'config') { loadConfig(); loadPresets(); }
+        }
+
+        let selectedStrategy = 'simple';
+        function selectStrategy(el, s) {
+            document.querySelectorAll('.strategy-card').forEach(e => e.classList.remove('active'));
+            el.classList.add('active');
+            selectedStrategy = s;
+        }
+
+        // ── 仪表盘 ──
+        async function loadDashboard() {
+            try {
+                const [stats, reqs, tokens] = await Promise.all([
+                    request('GET', '/admin/api/stats'),
+                    request('GET', '/admin/api/requests?limit=10'),
+                    request('GET', '/admin/api/token-stats').catch(() => ({ grand_total: 0 }))
+                ]);
+                document.getElementById('totalRequests').textContent = stats.total_requests;
+                document.getElementById('okRequests').textContent = stats.ok_requests;
+                document.getElementById('avgLatency').textContent = stats.avg_latency_ms + 'ms';
+                document.getElementById('totalTokens').textContent = (tokens.grand_total || 0).toLocaleString();
+
+                const tbody = document.getElementById('recentRequests');
+                if (!reqs.length) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>暂无请求记录</p></td></tr>';
+                } else {
+                    tbody.innerHTML = reqs.map(r => `<tr>
+                        <td>${(r.created_at || '').slice(-8)}</td>
+                        <td>${r.strategy || ''}</td>
+                        <td>${r.model_name || ''}</td>
+                        <td>${r.elapsed_ms || 0}ms</td>
+                        <td>${r.status === 'ok' ? '<span style="color:var(--success)">成功</span>' : '<span style="color:var(--danger)">失败</span>'}</td>
+                    </tr>`).join('');
+                }
+            } catch (e) {
+                console.error('Dashboard error:', e);
+            }
+        }
+
+        // ── 端点管理 ──
+        let endpoints = [];
+        let selectedEndpoint = null;
+
+        async function loadEndpoints() {
+            try {
+                endpoints = await request('GET', '/admin/api/endpoints');
+                const tbody = document.getElementById('endpointList');
+                if (!endpoints.length) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>暂无端点，点击上方「保存」添加</p></td></tr>';
+                } else {
+                    tbody.innerHTML = endpoints.map((ep, i) => `<tr onclick="selectEndpoint(${i})" class="${selectedEndpoint === i ? 'selected' : ''}" style="cursor:pointer;">
+                        <td><strong>${ep.name}</strong></td>
+                        <td>${ep.api_type}</td>
+                        <td style="color:var(--text-muted);font-size:12px;">${ep.base_url}</td>
+                        <td>${ep.model}</td>
+                        <td style="color:var(--text-muted);font-size:12px;">${(ep.api_key || '').slice(0, 8)}...</td>
+                    </tr>`).join('');
+                }
+            } catch (e) {
+                console.error('Endpoints error:', e);
+            }
+        }
+
+        function selectEndpoint(i) {
+            selectedEndpoint = i;
+            const ep = endpoints[i];
+            document.getElementById('epName').value = ep.name;
+            document.getElementById('epType').value = ep.api_type;
+            document.getElementById('epUrl').value = ep.base_url;
+            document.getElementById('epModel').value = ep.model;
+            document.getElementById('epKey').value = '';
+            document.getElementById('epModelSelect').style.display = 'none';
+            document.getElementById('epModel').style.display = 'block';
+            loadEndpoints();
+        }
+
+        async function fetchModels() {
+            const url = document.getElementById('epUrl').value.trim();
+            const key = document.getElementById('epKey').value.trim();
+            if (!url) { toast('请先填写 Base URL', 'error'); return; }
+            try {
+                const headers = key ? { 'Authorization': `Bearer ${key}` } : {};
+                const res = await fetch(`${url}/models`, { headers });
+                const data = await res.json();
+                const models = (data.data || []).map(m => m.id);
+                if (models.length) {
+                    const select = document.getElementById('epModelSelect');
+                    select.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
+                    select.style.display = 'block';
+                    document.getElementById('epModel').style.display = 'none';
+                    document.getElementById('epModel').value = models[0];
+                    toast(`获取到 ${models.length} 个模型`);
+                } else {
+                    document.getElementById('epModelSelect').style.display = 'none';
+                    document.getElementById('epModel').style.display = 'block';
+                    toast('该 API 未返回模型列表', 'error');
+                }
+            } catch (e) {
+                toast('获取失败: ' + e.message, 'error');
+            }
+        }
+
+        async function testEndpoint() {
+            const url = document.getElementById('epUrl').value.trim();
+            const key = document.getElementById('epKey').value.trim();
+            const model = document.getElementById('epModel').value.trim();
+            if (!url) { toast('请先填写 Base URL', 'error'); return; }
+            try {
+                const headers = { 'Content-Type': 'application/json' };
+                if (key) headers['Authorization'] = `Bearer ${key}`;
+                const t0 = Date.now();
+                const res = await fetch(`${url}/chat/completions`, {
+                    method: 'POST', headers,
+                    body: JSON.stringify({ model: model || 'gpt-3.5-turbo', messages: [{ role: 'user', content: 'hi' }], max_tokens: 5 })
+                });
+                const elapsed = Date.now() - t0;
+                if (res.ok) {
+                    toast(`连接成功! 延迟: ${elapsed}ms`);
+                } else {
+                    toast(`失败: ${res.status}`, 'error');
+                }
+            } catch (e) {
+                toast('连接失败: ' + e.message, 'error');
+            }
+        }
+
+        async function saveEndpoint() {
+            const model = document.getElementById('epModel').value.trim();
+            const data = {
+                name: document.getElementById('epName').value.trim(),
+                api_type: document.getElementById('epType').value,
+                base_url: document.getElementById('epUrl').value.trim(),
+                api_key: document.getElementById('epKey').value.trim(),
+                model
+            };
+            if (!data.name || !data.base_url || !data.model) {
+                toast('名称、Base URL、Model 为必填项', 'error');
+                return;
+            }
+            try {
+                await request('PUT', `/admin/api/endpoints/${data.name}`, data);
+                toast('端点已保存');
+                loadEndpoints();
+                document.getElementById('epKey').value = '';
+                document.getElementById('epModelSelect').style.display = 'none';
+                document.getElementById('epModel').style.display = 'block';
+            } catch (e) {
+                try {
+                    await request('POST', '/admin/api/endpoints', data);
+                    toast('端点已创建');
+                    loadEndpoints();
+                } catch (e2) {
+                    toast('保存失败: ' + e2.message, 'error');
+                }
+            }
+        }
+
+        async function deleteEndpoint() {
+            if (selectedEndpoint === null) { toast('请先选择一个端点', 'error'); return; }
+            const ep = endpoints[selectedEndpoint];
+            if (!confirm(`删除端点 "${ep.name}"？`)) return;
+            try {
+                await request('DELETE', `/admin/api/endpoints/${ep.name}`);
+                toast('端点已删除');
+                selectedEndpoint = null;
+                loadEndpoints();
+            } catch (e) {
+                toast('删除失败: ' + e.message, 'error');
+            }
+        }
+
+        // ── 编排配置 ──
+        let allEndpoints = [];
+
+        async function loadConfig() {
+            try {
+                const cfg = await request('GET', '/admin/api/config');
+                allEndpoints = cfg.available_endpoints || [];
+
+                const proposerDiv = document.getElementById('proposerList');
+                const enabled = new Set((cfg.proposers || []).map(p => p.endpoint_name));
+                if (!allEndpoints.length) {
+                    proposerDiv.innerHTML = '<div class="empty-state"><p>请先在「端点管理」中添加端点</p></div>';
+                } else {
+                    proposerDiv.innerHTML = allEndpoints.map(ep => `<label class="checkbox-item ${enabled.has(ep.name) ? 'checked' : ''}" onclick="this.classList.toggle('checked')">
+                        <input type="checkbox" value="${ep.name}" ${enabled.has(ep.name) ? 'checked' : ''}>
+                        <span class="ep-name">${ep.name}</span>
+                        <span class="ep-model">${ep.model}</span>
+                    </label>`).join('');
+                }
+
+                const aggSelect = document.getElementById('aggEndpoint');
+                aggSelect.innerHTML = allEndpoints.map(ep => `<option value="${ep.name}" ${ep.name === cfg.aggregator_endpoint ? 'selected' : ''}>${ep.name} (${ep.model})</option>`).join('');
+                document.getElementById('aggPrompt').value = cfg.aggregator_system_prompt || '';
+
+                selectedStrategy = cfg.strategy || 'simple';
+                document.querySelectorAll('.strategy-card').forEach(el => {
+                    el.classList.toggle('active', el.querySelector('.name').textContent === selectedStrategy);
+                });
+
+                document.getElementById('timeout').value = cfg.timeout || 120;
+                document.getElementById('streamTimeout').value = cfg.stream_timeout || 300;
+                document.getElementById('proposerTemp').value = cfg.proposer_temperature ?? 0.6;
+                document.getElementById('aggregatorTemp').value = cfg.aggregator_temperature ?? 0.4;
+            } catch (e) {
+                console.error('Config error:', e);
+            }
+        }
+
+        async function saveConfig() {
+            const proposers = [];
+            document.querySelectorAll('#proposerList input:checked').forEach(cb => {
+                proposers.push({ endpoint: cb.value, label: cb.value, role: 'strong' });
+            });
+            if (!proposers.length) { toast('至少选择一个 Proposer', 'error'); return; }
+            const data = {
+                proposers,
+                aggregator_endpoint: document.getElementById('aggEndpoint').value,
+                aggregator_system_prompt: document.getElementById('aggPrompt').value,
+                strategy: selectedStrategy,
+                timeout: parseInt(document.getElementById('timeout').value) || 120,
+                stream_timeout: parseInt(document.getElementById('streamTimeout').value) || 300,
+                proposer_temperature: parseFloat(document.getElementById('proposerTemp').value) || 0.6,
+                aggregator_temperature: parseFloat(document.getElementById('aggregatorTemp').value) || 0.4
+            };
+            try {
+                await request('PUT', '/admin/api/config', data);
+                toast('配置已保存');
+            } catch (e) {
+                toast('保存失败: ' + e.message, 'error');
+            }
+        }
+
+        // ── 配置预设 ──
+        async function loadPresets() {
+            try {
+                const presets = await request('GET', '/admin/api/presets');
+                const div = document.getElementById('presetList');
+                if (!presets.length) {
+                    div.innerHTML = '<div class="empty-state"><p>暂无预设，保存当前配置创建第一个</p></div>';
+                    return;
+                }
+                div.innerHTML = presets.map(p => `<div class="preset-item ${p.is_active ? 'active' : ''}">
+                    <div class="info">
+                        <div class="name">${p.name} ${p.is_active ? '<span class="active-badge">当前</span>' : ''}</div>
+                        ${p.description ? `<div class="desc">${p.description}</div>` : ''}
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-primary btn-sm" onclick="activatePreset(${p.id})">启用</button>
+                        <button class="btn btn-ghost btn-sm" onclick="deletePreset(${p.id})">删除</button>
+                    </div>
+                </div>`).join('');
+            } catch (e) {
+                console.error('Load presets error:', e);
+            }
+        }
+
+        async function savePreset() {
+            const name = document.getElementById('presetName').value.trim();
+            if (!name) { toast('请输入预设名称', 'error'); return; }
+            try {
+                await request('POST', '/admin/api/presets', { name, description: document.getElementById('presetDesc').value.trim() });
+                toast('预设已保存');
+                document.getElementById('presetName').value = '';
+                document.getElementById('presetDesc').value = '';
+                loadPresets();
+            } catch (e) {
+                toast('保存失败: ' + e.message, 'error');
+            }
+        }
+
+        async function activatePreset(id) {
+            try {
+                const res = await request('POST', `/admin/api/presets/${id}/activate`);
+                toast(res.message || '预设已激活');
+                loadConfig();
+                loadPresets();
+            } catch (e) {
+                toast('激活失败: ' + e.message, 'error');
+            }
+        }
+
+        async function deletePreset(id) {
+            if (!confirm('确定删除此预设？')) return;
+            try {
+                await request('DELETE', `/admin/api/presets/${id}`);
+                toast('预设已删除');
+                loadPresets();
+            } catch (e) {
+                toast('删除失败: ' + e.message, 'error');
+            }
+        }
+
+        // ── 模型评测 ──
+        let benchmarkRunId = null;
+
+        async function startBenchmark() {
+            document.getElementById('benchmarkBtn').disabled = true;
+            document.getElementById('benchmarkProgress').textContent = '评测中...';
+            document.getElementById('benchmarkRanking').innerHTML = '<tr><td colspan="5" class="empty-state"><p>评测中...</p></td></tr>';
+            document.getElementById('benchmarkResults').innerHTML = '';
+            try {
+                const { run_id } = await request('POST', '/admin/api/benchmark');
+                benchmarkRunId = run_id;
+                pollBenchmark();
+            } catch (e) {
+                toast('启动评测失败: ' + e.message, 'error');
+                document.getElementById('benchmarkBtn').disabled = false;
+                document.getElementById('benchmarkProgress').textContent = '';
+            }
+        }
+
+        async function pollBenchmark() {
+            if (!benchmarkRunId) return;
+            try {
+                const data = await request('GET', `/admin/api/benchmark/${benchmarkRunId}`);
+                document.getElementById('benchmarkProgress').textContent = `进度: ${data.progress}/${data.total}`;
+                if (data.status === 'done') {
+                    document.getElementById('benchmarkBtn').disabled = false;
+                    document.getElementById('benchmarkProgress').textContent = `评测完成`;
+                    showBenchmarkResults(data);
+                } else if (data.status === 'error') {
+                    document.getElementById('benchmarkBtn').disabled = false;
+                    document.getElementById('benchmarkProgress').textContent = `评测出错`;
+                } else {
+                    setTimeout(pollBenchmark, 3000);
+                }
+            } catch (e) {
+                setTimeout(pollBenchmark, 3000);
+            }
+        }
+
+        function showBenchmarkResults(data) {
+            const ranking = data.ranking || [];
+            document.getElementById('benchmarkRanking').innerHTML = ranking.length ? ranking.map(r => `<tr>
+                <td><strong>${r.name}</strong></td>
+                <td>${r.type}</td>
+                <td>${r.avg_score}</td>
+                <td>${r.avg_latency_s}s</td>
+                <td>${r.total_tokens.toLocaleString()}</td>
+            </tr>`).join('') : '<tr><td colspan="5" class="empty-state"><p>无结果</p></td></tr>';
+
+            const results = data.results || [];
+            document.getElementById('benchmarkResults').innerHTML = results.length ? results.map(r => `<tr>
+                <td>${r.name}</td>
+                <td>${r.question}</td>
+                <td>${r.score}</td>
+                <td>${r.latency_s}s</td>
+                <td>${(r.prompt_tokens + r.completion_tokens).toLocaleString()}</td>
+                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(r.content_preview || '').slice(0, 60)}</td>
+            </tr>`).join('') : '<tr><td colspan="6" class="empty-state"><p>无数据</p></td></tr>';
+        }
+
+        // ── 健康检查 ──
+        async function checkHealth() {
+            try {
+                await request('GET', '/admin/api/stats');
+                document.getElementById('statusDot').className = 'status-dot ok';
+                document.getElementById('statusText').textContent = '服务运行中';
+            } catch (e) {
+                document.getElementById('statusDot').className = 'status-dot err';
+                document.getElementById('statusText').textContent = '服务未响应';
+            }
+        }
+
+        // 初始化
+        checkHealth();
+        setInterval(checkHealth, 10000);
+        loadDashboard();
+    </script>
+</body>
+</html>

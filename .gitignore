@@ -1,0 +1,12 @@
+__pycache__/
+.venv/
+.env
+*.pyc
+build/
+dist/
+*.exe
+*.db
+*.log
+crash.log
+test_*.py
+pic/

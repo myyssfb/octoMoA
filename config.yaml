@@ -1,0 +1,61 @@
+# ── 端点池 ──
+
+endpoints:
+  deepseek-chat:
+    api_type: openai
+    base_url: https://api.deepseek.com/v1
+    api_key: sk-58766bfd9dab4657a42ee2e738983099
+    model: deepseek-chat
+
+  deepseek-v4-pro:
+    api_type: openai
+    base_url: https://api.deepseek.com/v1
+    api_key: sk-58766bfd9dab4657a42ee2e738983099
+    model: deepseek-v4-pro
+
+  mimo-v2.5:
+    api_type: openai
+    base_url: https://token-plan-cn.xiaomimimo.com/v1
+    api_key: tp-cpiqb20bi9d9a09rky1261dx0kr7hmp0tsd54h4y6772rqwv
+    model: mimo-v2.5
+
+  mimo-v2.5-pro:
+    api_type: openai
+    base_url: https://token-plan-cn.xiaomimimo.com/v1
+    api_key: tp-cpiqb20bi9d9a09rky1261dx0kr7hmp0tsd54h4y6772rqwv
+    model: mimo-v2.5-pro
+
+# ── Proposer（v4-pro + ds-chat 双参谋）──
+
+proposers:
+  - endpoint: deepseek-v4-pro
+    label: ds-v4-pro
+    role: strong
+  - endpoint: deepseek-chat
+    label: ds-chat
+    role: strong
+
+# ── Aggregator ──
+
+aggregator:
+  endpoint: deepseek-chat
+  system_prompt: |
+    You are an expert synthesizer. You will be given responses from multiple AI models to the same user query.
+    Your task: critically evaluate each response, resolve contradictions, combine the strongest points, and produce a single refined answer.
+    Do NOT mention that you are synthesizing — just provide the final answer directly.
+
+# ── 服务配置 ──
+
+server:
+  host: 127.0.0.1
+  port: 18990
+  api_key: ""
+
+# ── MoA 策略（cascade 最佳组合）──
+
+moa:
+  strategy: cascade
+  timeout: 120
+  stream_timeout: 300
+  proposer_temperature: 0.6
+  aggregator_temperature: 0.4

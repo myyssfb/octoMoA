@@ -1,0 +1,25 @@
+[project]
+name = "octomoa"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiosqlite>=0.22.1",
+    "customtkinter>=6.0.0",
+    "fastapi>=0.139.0",
+    "httpx>=0.28.1",
+    "pillow>=12.3.0",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.14.2",
+    "pyside6>=6.11.1",
+    "pystray>=0.19.5",
+    "python-dotenv>=1.2.2",
+    "pyyaml>=6.0.3",
+    "uvicorn>=0.49.0",
+]
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.21.0",
+]
