@@ -10,3 +10,4 @@ dist/
 crash.log
 test_*.py
 pic/
+config.yaml
